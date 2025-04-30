@@ -124,8 +124,3 @@ Rscript main.R path/to/input.json
 - One NetCDF file per requested variable and year/month, saved in `./data/`.
 - If `make_hybrid_weather = true`, a combined NetCDF named `hybrid_weather_{start_year}_{end_year}.nc` will be created in the project directory.
 
----
-
-## License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
