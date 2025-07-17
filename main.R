@@ -7,8 +7,8 @@ library(stringr)
 source("merge_era5_netcdf.R")
 
 
-month_request_generator <- function(year, month, variable, stat = "mean", 
-                                    area = c(40.613687151061505, -95.76804054400543, 
+month_request_generator <- function(year, month, variable, stat = "mean",
+                                    area = c(40.613687151061505, -95.76804054400543,
                                              35.99538225441254, -89.09913230512305)) {
   assertthat::assert_that(length(variable) == 1)
   assertthat::assert_that(length(stat) == 1)
@@ -32,7 +32,7 @@ month_request_generator <- function(year, month, variable, stat = "mean",
 
 args = commandArgs(trailingOnly=T)
 
-if (length(args) == 0) stop("No arguments provided. Please provide the json file with the start month, 
+if (length(args) == 0) stop("No arguments provided. Please provide the json file with the start month,
                             end month, start year, end year, and bounding box.")
 file.exists(args[1]) || stop("The provided file does not exist. Please provide a valid json file.")
 json_file <- args[[1]]
@@ -60,37 +60,37 @@ download_path <- "./data"
 requests <- list()
 for (yr in years) {
   requests[[paste0("mean_dewpoint_temperature_", yr)]] <- month_request_generator(
-    month = month, 
-    year = yr, 
-    variable = "2m_dewpoint_temperature", 
+    month = month,
+    year = yr,
+    variable = "2m_dewpoint_temperature",
     stat = "mean",
     area = bbox
   )
   requests[[paste0("mean_temperature_", yr)]] <- month_request_generator(
-    month = month, 
-    year = yr, 
-    variable = "2m_temperature", 
+    month = month,
+    year = yr,
+    variable = "2m_temperature",
     stat = "mean",
     area = bbox
   )
   requests[[paste0("minimum_temperature_", yr)]] <- month_request_generator(
-    month = month, 
-    year = yr, 
-    variable = "2m_temperature", 
+    month = month,
+    year = yr,
+    variable = "2m_temperature",
     stat = "minimum",
     area = bbox
   )
   requests[[paste0("maximum_temperature_", yr)]] <- month_request_generator(
-    month = month, 
-    year = yr, 
-    variable = "2m_temperature", 
+    month = month,
+    year = yr,
+    variable = "2m_temperature",
     stat = "maximum",
     area = bbox
   )
   requests[[paste0("sum_precipitation_", yr)]] <- month_request_generator(
-    month = month, 
-    year = yr, 
-    variable = "total_precipitation", 
+    month = month,
+    year = yr,
+    variable = "total_precipitation",
     stat = "sum",
     area = bbox
   )
@@ -106,7 +106,7 @@ for (yr in years) {
 
 requests <- Filter(function(req) {
   target_file <- file.path(download_path, req$target)
-  
+
   if (file.exists(target_file) &&
       req$year != as.integer(format(Sys.Date(), "%Y"))) {
     message("Skipping request for: ", req$target, " (not current year and already downloaded)")
@@ -114,7 +114,7 @@ requests <- Filter(function(req) {
   TRUE
 }, requests)
 
-Set up futures to run downloads asynchronously.
+# Set up futures to run downloads asynchronously.
 plan(multisession, workers = future::availableCores() - 1)
 
 # Helper function that submits a single request and polls until the file is available.
@@ -151,4 +151,11 @@ weather_path <- run_merge_era5_netcdf(in_dir = download_path, out_dir = dirname(
 if (json_data$make_hybrid_weather) {
   source("hybrid_weather.R")
   run_hybrid_weather(weather_path)
+  
+  source("forecast.R")
+  files <- list.files(path = ".", pattern = "^aifs_\\d{8}_daily\\.nc$", full.names = TRUE)
+  if (length(files) == 0) stop("No aifs_*_daily.nc files found in this directory.")
+  dates <- as.Date(sub("^.*/aifs_(\\d{8})_daily\\.nc$", "\\1", files), format = "%Y%m%d")
+  forecast_path <- files[which.max(dates)]
+  run_hybrid_with_forecast_weather(weather_path, forecast_path)
 }
