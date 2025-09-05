@@ -12,7 +12,8 @@ library(lubridate)
 build_forecast_schedule <- function(start_dt,
                                     end_dt   = Sys.time(),
                                     base_url = "https://storage.googleapis.com/ecmwf-open-data",
-                                    tz       = "UTC") {
+                                    tz       = "UTC",
+                                    temp_dir = "temp") {
   tz            <- if (tz %in% c("CST","CDT")) "America/Chicago" else tz
   step_h        <- hours(3)
   start_dt <- as.POSIXct(start_dt, tz = tz)
@@ -48,6 +49,10 @@ build_forecast_schedule <- function(start_dt,
 #––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
 # 1) COMPUTE TODAY’S “LAGGED” UTC RUN (one cycle behind)
 #––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+TEMP_DIR = "temp"
+FORECAST_DIR = "forecast"
+forecast_days_advance <- days(14)
+
 run_hours <- c(0, 6, 12, 18)
 utc_now   <- as.POSIXct(Sys.time(), tz="UTC")
 today_utc <- as.Date(utc_now)
@@ -68,22 +73,26 @@ message("Using AIFS run: ", run_date, " ", run_hour, " UTC")
 #––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
 # 2) BUILD URLS, FILENAMES & ADVANCE HOURS VECTOR
 #––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
-start_dt <- format(as_date(Sys.time()) - days(6), "%Y-%m-%d %H:%M:%S")
-end_dt <- format(as_date(Sys.time()) + days(14), "%Y-%m-%d %H:%M:%S")
+start_dt <- format(as_date(today_utc) - days(6), "%Y-%m-%d %H:%M:%S")
+end_dt <- format(as_date(today_utc) + forecast_days_advance, "%Y-%m-%d %H:%M:%S")
 
 df <- build_forecast_schedule(
   start_dt = start_dt,
   end_dt = end_dt,
-  tz = "America/Chicago"
+  tz = "America/Chicago",
+  temp_dir = TEMP_DIR
 )
 
 urls <- df$url
 grb_paths <- df$grib_path
 nc4_paths <- file.path(
-  "./forecast",
+  FORECAST_DIR,
   sprintf("aifs_%s_%sh_%03dh.nc",
           df$run_date, df$run_hour, df$lead_h)
 )
+
+dir.create(TEMP_DIR)
+dir.create(FORECAST_DIR)
 
 #––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
 # 3) (optional) DOWNLOAD ALL GRIB2 FILES IN PARALLEL

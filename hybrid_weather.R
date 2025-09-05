@@ -1,5 +1,6 @@
 library(ncdf4)
 library(ncdf4.helpers)
+library(lubridate)
 
 
 extract_variable_from_year <- function(nc, variable, year) {
